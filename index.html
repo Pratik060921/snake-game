@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snake Game - Ultimate Edition</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0c0a18"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Snake Game">
+    <link id="manifestLink" rel="manifest">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Link to your stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-2 md:p-4">
+
+    <div id="gameContainer" class="hidden relative">
+        <div class="w-full max-w-2xl text-center mb-4">
+            <div class="flex justify-between items-center">
+                <div class="font-pixel text-lg">SCORE: <span id="score" class="text-red-400">0</span></div>
+                <h1 class="font-pixel text-3xl md:text-4xl text-yellow-400">SNAKE</h1>
+                <div id="timerDisplay" class="font-pixel text-lg text-blue-400 w-28 text-right"></div>
+            </div>
+        </div>
+        <div id="canvas-container" class="bg-gray-800 border-4 border-yellow-500 shadow-lg rounded-lg overflow-hidden relative">
+            <canvas id="gameCanvas"></canvas>
+            <div id="comboDisplay" class="absolute top-2 left-2 font-pixel text-yellow-300 text-lg hidden">COMBO x2</div>
+            <div id="pauseScreen" class="absolute inset-0 modal bg-black bg-opacity-50 hidden"><h2 class="font-pixel text-4xl text-white">PAUSED</h2></div>
+            <button id="playPauseButton" class="absolute top-2 right-2 w-10 h-10 bg-black bg-opacity-40 rounded-full text-white flex items-center justify-center z-20 hover:bg-opacity-60 transition">
+                <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6" /></svg>
+                <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
+            </button>
+        </div>
+        <div class="mt-4 text-center text-gray-400 text-sm">Use Arrow Keys or WASD to move. Press 'P' to Pause.</div>
+    </div>
+
+    <div id="homeScreen" class="modal"><div class="modal-content rounded-lg p-6 md:p-8 text-center shadow-2xl max-w-md w-full"><h2 class="font-pixel text-4xl text-yellow-400 mb-4">SNAKE</h2><div class="mb-6"><h3 id="leaderboardTitle" class="font-pixel text-xl text-yellow-300 mb-3">High Scores</h3><ol id="leaderboardList" class="text-left text-lg space-y-1"></ol></div><p id="loadingText" class="text-lg mb-6">Loading Assets...</p><div id="homeButtons" class="hidden"><button id="playButton" class="font-pixel bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition duration-300 text-xl w-full">Play</button><button id="settingsButton" class="font-pixel mt-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300 w-full">Settings</button></div></div></div>
+    <div id="gameModeScreen" class="modal hidden"><div class="modal-content rounded-lg p-6 md:p-8 text-center shadow-2xl max-w-md w-full"><h2 class="font-pixel text-3xl text-yellow-400 mb-6">Select Mode</h2><div class="space-y-4"><button data-mode="classic" class="game-mode-btn font-pixel bg-green-600 hover:bg-green-700 p-3 rounded-lg w-full">Classic</button><button data-mode="maze" class="game-mode-btn font-pixel bg-blue-600 hover:bg-blue-700 p-3 rounded-lg w-full">Hurdles</button><button data-mode="timeAttack" class="game-mode-btn font-pixel bg-purple-600 hover:bg-purple-700 p-3 rounded-lg w-full">Time Attack</button></div><button id="modeBackButton" class="font-pixel mt-6 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg">Back</button></div></div>
+    <div id="settingsScreen" class="modal hidden"><div class="modal-content rounded-lg p-6 md:p-8 text-center shadow-2xl max-w-md w-full"><h2 class="font-pixel text-3xl text-yellow-400 mb-6">Settings</h2><div class="mb-4"><h3 class="font-pixel text-xl mb-3">Difficulty</h3><div class="flex justify-center space-x-2"><button data-difficulty="easy" class="difficulty-btn font-pixel bg-green-600 hover:bg-green-700 p-2 rounded-lg flex-1">Easy</button><button data-difficulty="medium" class="difficulty-btn font-pixel bg-yellow-600 hover:bg-yellow-700 p-2 rounded-lg flex-1">Medium</button><button data-difficulty="hard" class="difficulty-btn font-pixel bg-red-600 hover:bg-red-700 p-2 rounded-lg flex-1">Hard</button></div></div><div class="mb-4"><h3 class="font-pixel text-xl mb-3">Sound</h3><button id="soundToggle" class="font-pixel bg-gray-600 hover:bg-gray-700 p-2 rounded-lg w-full">Sound: ON</button></div><div class="mb-6"><h3 class="font-pixel text-xl mb-3">Themes</h3><div id="themeSelection" class="flex justify-center space-x-2"></div></div><button id="settingsBackButton" class="font-pixel bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg">Back</button></div></div>
+    <div id="gameOverModal" class="modal hidden"><div class="modal-content rounded-lg p-8 text-center shadow-2xl"><h2 id="gameOverTitle" class="font-pixel text-3xl text-red-500 mb-4">GAME OVER</h2><p class="text-lg mb-4">Final Score: <span id="finalScore" class="font-bold text-red-400">0</span></p><div id="newHighScoreContainer" class="hidden"><p class="text-yellow-300 font-pixel mb-2">New High Score!</p><input type="text" id="playerNameInput" placeholder="Enter Name" maxlength="10" class="font-pixel text-center uppercase bg-gray-700 border-2 border-yellow-500 rounded p-2 w-full max-w-xs"></div><button id="restartButton" class="font-pixel mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg">Play Again</button></div></div>
+    <div id="touchControlsContainer" class="fixed bottom-4 right-4 grid grid-cols-3 gap-2 w-48 hidden"><div></div><button id="touchUp">▲</button><div></div><button id="touchLeft">◀</button><div></div><button id="touchRight">▶</button><div></div><button id="touchDown">▼</button><div></div></div>
+
+    <!-- Link to your script file -->
+    <script src="script.js" type="module"></script>
+</body>
+</html>
