@@ -16,16 +16,25 @@ const playPauseButton = document.getElementById('playPauseButton'), pauseIcon = 
 let db = null;
 async function initializeFirebase() {
     try {
-        const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
-        const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        const auth = getAuth();
-        await signInAnonymously(auth);
-        console.log("Firebase initialized and user signed in anonymously.");
+        const firebaseConfigStr = typeof __FIREBASE_CONFIG__ !== 'undefined' ? atob('__FIREBASE_CONFIG__') : null;
+        if (firebaseConfigStr) {
+            const firebaseConfig = JSON.parse(firebaseConfigStr);
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            const auth = getAuth();
+            const initialAuthToken = typeof __INITIAL_AUTH_TOKEN__ !== 'undefined' ? '__INITIAL_AUTH_TOKEN__' : null;
+            if (initialAuthToken && !initialAuthToken.startsWith('__')) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+            console.log("Firebase initialized successfully.");
+        } else {
+             console.warn("Firebase config not available. Online features disabled.");
+        }
     } catch (e) {
         console.error("Firebase initialization failed:", e);
-        db = null; 
+        db = null;
     }
 }
 
@@ -354,7 +363,9 @@ playPauseButton.addEventListener('click', togglePause);
 
 loadSettings();
 loadThemeAssets();
-displayLeaderboard();
+initializeFirebase().then(() => {
+    displayLeaderboard();
+});
 setupTouchControls();
 </script>
 </body>
