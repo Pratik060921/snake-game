@@ -14,17 +14,19 @@ const playPauseButton = document.getElementById('playPauseButton'), pauseIcon = 
 
 // --- FIREBASE SETUP ---
 let db = null;
-try {
-    const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
-    const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    const auth = getAuth();
-    await signInAnonymously(auth);
-    console.log("Firebase initialized and user signed in anonymously.");
-} catch (e) {
-    console.error("Firebase initialization failed:", e);
-    db = null; 
+async function initializeFirebase() {
+    try {
+        const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
+        const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        const auth = getAuth();
+        await signInAnonymously(auth);
+        console.log("Firebase initialized and user signed in anonymously.");
+    } catch (e) {
+        console.error("Firebase initialization failed:", e);
+        db = null; 
+    }
 }
 
 // --- AUDIO & MUSIC ---
@@ -84,7 +86,6 @@ async function loadThemeAssets() {
         loadingText.textContent = "Error loading assets.";
     }
 }
-
 function createStarryBackground() { return `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="grad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2a2a4a"/><stop offset="100%" stop-color="#0c0a18"/></radialGradient><style>.star{animation:twinkle 2s ease-in-out infinite alternate;}@keyframes twinkle{0%{opacity:0.5;}100%{opacity:1;}}</style></defs><rect width="64" height="64" fill="url(#grad)"/><circle class="star" cx="10" cy="15" r="1" fill="white"/><circle class="star" cx="50" cy="20" r="1.2" fill="white" style="animation-delay:0.5s;"/><circle class="star" cx="30" cy="50" r="0.8" fill="white" style="animation-delay:1s;"/><circle class="star" cx="60" cy="55" r="1" fill="white" style="animation-delay:1.5s;"/></svg>`; }
 function createWall() { return `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" fill="#4A5568"/><rect x="2" y="2" width="28" height="28" fill="#718096"/><path d="M0 0 H16 V4 H4 V16 H0Z M32 0 H16 V4 H28 V16 H32Z M0 32 H16 V28 H4 V16 H0Z M32 32 H16 V28 H28 V16 H32Z" fill="#2D3748"/></svg>`; }
 function createApple() { return `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="12" fill="#DC2626"/><path d="M16 4 A 8 8 0 0 1 20 6" stroke="#166534" stroke-width="3" fill="none"/><circle cx="19" cy="11" r="2" fill="rgba(255,255,255,0.5)"/></svg>`; }
@@ -219,7 +220,7 @@ function update() {
     }
 
     for (let i = 1; i < snake.length; i++) { if (head.x === snake[i].x && head.y === snake[i].y) { gameOver = true; playSound('gameover'); stopMusic(); return; } }
-    enemies.forEach(enemy => { if (head.x === Math.floor(enemy.x) && head.y === enemy.y) { gameOver = true; playSound('gameover'); stopMusic(); return; } });
+    enemies.forEach(enemy => { if (head.x === Math.round(enemy.x) && head.y === enemy.y) { gameOver = true; playSound('gameover'); stopMusic(); return; } });
     
     const visualPos = wrapped ? { x: head.x * TILE_SIZE, y: head.y * TILE_SIZE } : { ...snake[0].visualPos };
     snake.unshift({ ...head, visualPos });
@@ -339,51 +340,6 @@ function handleKeyDown(e) {
 async function handleRestart() { playSound('click'); const currentHighScores = await loadHighScores(); const lowestScore = currentHighScores.length < 5 ? 0 : currentHighScores[4].score; if (score > 0 && score >= lowestScore) { let name = playerNameInput.value.trim().toUpperCase() || 'PLAYER'; localStorage.setItem(PLAYER_NAME_KEY, name); await addHighScore(name, score); } await displayLeaderboard(); homeScreen.classList.remove('hidden'); gameOverModal.classList.add('hidden'); gameContainer.classList.add('hidden'); touchControlsContainer.classList.add('hidden'); stopMusic(); }
 function setupTouchControls() { document.getElementById('touchUp').addEventListener('click', () => { if (direction !== DIRECTIONS.DOWN) direction = DIRECTIONS.UP; }); document.getElementById('touchDown').addEventListener('click', () => { if (direction !== DIRECTIONS.UP) direction = DIRECTIONS.DOWN; }); document.getElementById('touchLeft').addEventListener('click', () => { if (direction !== DIRECTIONS.RIGHT) direction = DIRECTIONS.LEFT; }); document.getElementById('touchRight').addEventListener('click', () => { if (direction !== DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT; }); }
 
-// --- PWA Service Worker & Manifest ---
-function setupPWA() {
-    const manifest = {
-        "name": "Snake Game - Ultimate Edition",
-        "short_name": "Snake",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#0c0a18",
-        "theme_color": "#0c0a18",
-        "description": "A feature-rich, modern version of the classic Snake game.",
-        "icons": [
-            {"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cGF0aCBkPSJNMCAwaDE5MnYxOTJIMHoiIGZpbGw9IiMwYzA5MTgiLz48cGF0aCBkPSJNNzIgNzJoNDh2NDhINzJ6IiBmaWxsPSIjZmZkNzAwIi8+PC9zdmc+", "sizes": "192x192", "type": "image/svg+xml"},
-            {"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBkPSJNMCAwaDUxMnY1MTJIMHoiIGZpbGw9IiMwYzA5MTgiLz48cGF0aCBkPSJNMTkyIDE5MmgxMjh2MTI4SDE5MnoiIGZpbGw9IiNmZmQ3MDAiLz48L3N2Zz4=", "sizes": "512x512", "type": "image/svg+xml"}
-        ]
-    };
-    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(manifestBlob);
-    document.querySelector('#manifestLink').setAttribute('href', manifestURL);
-
-    if ('serviceWorker' in navigator) {
-        const swContent = `
-            const CACHE_NAME = 'snake-game-v1';
-            const urlsToCache = [
-                '/',
-                'https://cdn.tailwindcss.com',
-                'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto+Mono:wght@400;700&display=swap'
-            ];
-            self.addEventListener('install', event => {
-                event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
-            });
-            self.addEventListener('fetch', event => {
-                event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
-            });
-        `;
-        const swBlob = new Blob([swContent], { type: 'application/javascript' });
-        const swURL = URL.createObjectURL(swBlob);
-        navigator.serviceWorker.register(swURL).then(reg => {
-            console.log('Service Worker registered successfully:', reg);
-        }).catch(err => {
-            console.error('Service Worker registration failed:', err);
-        });
-    }
-}
-
-
 // --- INITIALIZE ---
 document.addEventListener('keydown', handleKeyDown);
 playButton.addEventListener('click', () => { playSound('click'); homeScreen.classList.add('hidden'); gameModeScreen.classList.remove('hidden'); });
@@ -400,7 +356,6 @@ loadSettings();
 loadThemeAssets();
 displayLeaderboard();
 setupTouchControls();
-setupPWA();
 </script>
 </body>
 </html>
