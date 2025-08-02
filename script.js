@@ -1,5 +1,4 @@
 // --- FIREBASE IMPORTS ---
-// Forcing a change for Git to detect
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -17,25 +16,16 @@ const playPauseButton = document.getElementById('playPauseButton'), pauseIcon = 
 let db = null;
 async function initializeFirebase() {
     try {
-        const firebaseConfigStr = typeof __FIREBASE_CONFIG__ !== 'undefined' ? atob('__FIREBASE_CONFIG__') : null;
-        if (firebaseConfigStr) {
-            const firebaseConfig = JSON.parse(firebaseConfigStr);
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            const auth = getAuth();
-            const initialAuthToken = typeof __INITIAL_AUTH_TOKEN__ !== 'undefined' ? '__INITIAL_AUTH_TOKEN__' : null;
-            if (initialAuthToken && !initialAuthToken.startsWith('__')) {
-                await signInWithCustomToken(auth, initialAuthToken);
-            } else {
-                await signInAnonymously(auth);
-            }
-            console.log("Firebase initialized successfully.");
-        } else {
-             console.warn("Firebase config not available. Online features disabled.");
-        }
+        const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
+        const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        const auth = getAuth();
+        await signInAnonymously(auth);
+        console.log("Firebase initialized and user signed in anonymously.");
     } catch (e) {
         console.error("Firebase initialization failed:", e);
-        db = null;
+        db = null; 
     }
 }
 
@@ -351,23 +341,25 @@ async function handleRestart() { playSound('click'); const currentHighScores = a
 function setupTouchControls() { document.getElementById('touchUp').addEventListener('click', () => { if (direction !== DIRECTIONS.DOWN) direction = DIRECTIONS.UP; }); document.getElementById('touchDown').addEventListener('click', () => { if (direction !== DIRECTIONS.UP) direction = DIRECTIONS.DOWN; }); document.getElementById('touchLeft').addEventListener('click', () => { if (direction !== DIRECTIONS.RIGHT) direction = DIRECTIONS.LEFT; }); document.getElementById('touchRight').addEventListener('click', () => { if (direction !== DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT; }); }
 
 // --- INITIALIZE ---
-document.addEventListener('keydown', handleKeyDown);
-playButton.addEventListener('click', () => { playSound('click'); homeScreen.classList.add('hidden'); gameModeScreen.classList.remove('hidden'); });
-document.querySelectorAll('.game-mode-btn').forEach(btn => btn.addEventListener('click', (e) => { gameMode = e.target.dataset.mode; playSound('click'); displayLeaderboard(); gameModeScreen.classList.add('hidden'); gameContainer.classList.remove('hidden'); if ('ontouchstart' in window) touchControlsContainer.classList.remove('hidden'); initializeGame(); }));
-modeBackButton.addEventListener('click', () => { playSound('click'); gameModeScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); });
-restartButton.addEventListener('click', handleRestart);
-settingsButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.remove('hidden'); });
-settingsBackButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.add('hidden'); });
-soundToggle.addEventListener('click', () => { gameSettings.sound = !gameSettings.sound; saveSettings(); updateSettingsUI(); playSound('click'); });
-document.querySelectorAll('.difficulty-btn').forEach(btn => btn.addEventListener('click', (e) => { gameSettings.difficulty = e.target.dataset.difficulty; saveSettings(); updateSettingsUI(); playSound('click'); }));
-playPauseButton.addEventListener('click', togglePause);
+window.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('keydown', handleKeyDown);
+    playButton.addEventListener('click', () => { playSound('click'); homeScreen.classList.add('hidden'); gameModeScreen.classList.remove('hidden'); });
+    document.querySelectorAll('.game-mode-btn').forEach(btn => btn.addEventListener('click', (e) => { gameMode = e.target.dataset.mode; playSound('click'); displayLeaderboard(); gameModeScreen.classList.add('hidden'); gameContainer.classList.remove('hidden'); if ('ontouchstart' in window) touchControlsContainer.classList.remove('hidden'); initializeGame(); }));
+    modeBackButton.addEventListener('click', () => { playSound('click'); gameModeScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); });
+    restartButton.addEventListener('click', handleRestart);
+    settingsButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.remove('hidden'); });
+    settingsBackButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.add('hidden'); });
+    soundToggle.addEventListener('click', () => { gameSettings.sound = !gameSettings.sound; saveSettings(); updateSettingsUI(); playSound('click'); });
+    document.querySelectorAll('.difficulty-btn').forEach(btn => btn.addEventListener('click', (e) => { gameSettings.difficulty = e.target.dataset.difficulty; saveSettings(); updateSettingsUI(); playSound('click'); }));
+    playPauseButton.addEventListener('click', togglePause);
 
-loadSettings();
-loadThemeAssets();
-initializeFirebase().then(() => {
-    displayLeaderboard();
+    loadSettings();
+    loadThemeAssets();
+    initializeFirebase().then(() => {
+        displayLeaderboard();
+    });
+    setupTouchControls();
 });
-setupTouchControls();
 </script>
 </body>
 </html>
