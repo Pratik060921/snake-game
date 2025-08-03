@@ -360,6 +360,3 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     setupTouchControls();
 });
-</script>
-</body>
-</html>
