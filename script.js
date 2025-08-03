@@ -1,41 +1,42 @@
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- SETUP ---
 const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score'), finalScoreElement = document.getElementById('finalScore'), timerDisplay = document.getElementById('timerDisplay'), comboDisplay = document.getElementById('comboDisplay');
-const gameContainer = document.getElementById('gameContainer'), homeScreen = document.getElementById('homeScreen'), gameOverModal = document.getElementById('gameOverModal'), pauseScreen = document.getElementById('pauseScreen'), settingsScreen = document.getElementById('settingsScreen'), gameModeScreen = document.getElementById('gameModeScreen');
-const playButton = document.getElementById('playButton'), restartButton = document.getElementById('restartButton'), homeButtons = document.getElementById('homeButtons'), settingsButton = document.getElementById('settingsButton'), settingsBackButton = document.getElementById('settingsBackButton'), soundToggle = document.getElementById('soundToggle'), modeBackButton = document.getElementById('modeBackButton'), themeSelection = document.getElementById('themeSelection');
-const leaderboardList = document.getElementById('leaderboardList'), newHighScoreContainer = document.getElementById('newHighScoreContainer'), playerNameInput = document.getElementById('playerNameInput'), leaderboardTitle = document.getElementById('leaderboardTitle');
+const gameContainer = document.getElementById('gameContainer'), homeScreen = document.getElementById('homeScreen'), gameOverModal = document.getElementById('gameOverModal'), pauseScreen = document.getElementById('pauseScreen'), settingsScreen = document.getElementById('settingsScreen'), gameModeScreen = document.getElementById('gameModeScreen'), globalLeaderboardScreen = document.getElementById('globalLeaderboardScreen');
+const playButton = document.getElementById('playButton'), restartButton = document.getElementById('restartButton'), homeButtons = document.getElementById('homeButtons'), settingsButton = document.getElementById('settingsButton'), settingsBackButton = document.getElementById('settingsBackButton'), soundToggle = document.getElementById('soundToggle'), modeBackButton = document.getElementById('modeBackButton'), themeSelection = document.getElementById('themeSelection'), leaderboardButton = document.getElementById('leaderboardButton'), leaderboardBackButton = document.getElementById('leaderboardBackButton');
+const personalBestTitle = document.getElementById('personalBestTitle'), personalBestDisplay = document.getElementById('personalBestDisplay'), newPlayerContainer = document.getElementById('newPlayerContainer'), playerNameInput = document.getElementById('playerNameInput'), globalLeaderboardTitle = document.getElementById('globalLeaderboardTitle'), globalLeaderboardList = document.getElementById('globalLeaderboardList'), playerRankDisplay = document.getElementById('playerRankDisplay');
 const touchControlsContainer = document.getElementById('touchControlsContainer');
 const playPauseButton = document.getElementById('playPauseButton'), pauseIcon = document.getElementById('pauseIcon'), playIcon = document.getElementById('playIcon');
+const loadingText = document.getElementById('loadingText');
+
 
 // --- FIREBASE SETUP ---
-let db = null;
+let db = null, auth = null, currentUser = null;
 async function initializeFirebase() {
     try {
-        // This placeholder is designed to be replaced by a build environment.
-        const firebaseConfigStr = '__FIREBASE_CONFIG__';
-        if (firebaseConfigStr && !firebaseConfigStr.startsWith('__')) {
-            const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            const auth = getAuth();
-            const initialAuthToken = '__INITIAL_AUTH_TOKEN__';
-            if (initialAuthToken && !initialAuthToken.startsWith('__')) {
-                await signInWithCustomToken(auth, initialAuthToken);
+        const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
+        const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth();
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadPlayerData();
             } else {
                 await signInAnonymously(auth);
             }
-            console.log("Firebase initialized successfully.");
-        } else {
-             console.warn("Firebase config not available. Online features disabled.");
-        }
+        });
     } catch (e) {
         console.error("Firebase initialization failed:", e);
-        db = null;
+        db = null; 
+        loadingText.textContent = "Offline Mode";
+        homeButtons.classList.remove('hidden');
     }
 }
 
@@ -49,11 +50,11 @@ function stopMusic() { if (musicNode) { musicNode.osc.stop(); clearInterval(musi
 const TILE_SIZE = 32, TILE_COUNT_X = 20, TILE_COUNT_Y = 15;
 canvas.width = TILE_SIZE * TILE_COUNT_X; canvas.height = TILE_SIZE * TILE_COUNT_Y;
 const SPEED_INCREMENT = 5;
-const SETTINGS_KEY = 'snakeGameSettings', PLAYER_NAME_KEY = 'snakePlayerName', UNLOCKED_THEMES_KEY = 'snakeUnlockedThemes', TOTAL_SCORE_KEY = 'snakeTotalScore';
+const SETTINGS_KEY = 'snakeGameSettings', UNLOCKED_THEMES_KEY = 'snakeUnlockedThemes', TOTAL_SCORE_KEY = 'snakeTotalScore';
 const DIFFICULTY_SPEEDS = { easy: 200, medium: 150, hard: 100 };
 
 // --- GAME STATE ---
-let snake, foods, enemies, direction, score, gameOver, logicInterval, currentSpeed, particles, highScores, isPaused = false, gameMode = 'classic', maze, timer, timerInterval, applesEaten, combo, comboTimer;
+let snake, foods, enemies, direction, score, gameOver, logicInterval, currentSpeed, particles, isPaused = false, gameMode = 'classic', maze, timer, timerInterval, applesEaten, combo, comboTimer;
 let gameSettings = { difficulty: 'medium', sound: true, theme: 'default' };
 const assets = {};
 
@@ -67,34 +68,13 @@ const THEMES = {
 const DIRECTIONS = { UP: { x: 0, y: -1 }, DOWN: { x: 0, y: 1 }, LEFT: { x: -1, y: 0 }, RIGHT: { x: 1, y: 0 }, STOP: { x: 0, y: 0 } };
 
 // --- ASSET & THEME LOADING ---
-function createSvgImagePromise(svgString) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
-    });
-}
-
+function createSvgImagePromise(svgString) { return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = `data:image/svg+xml;base64,${btoa(svgString)}`; }); }
 async function loadThemeAssets() {
     const themeAssets = THEMES[gameSettings.theme].assets;
     homeButtons.classList.add('hidden');
     loadingText.classList.remove('hidden');
-
-    const promises = Object.keys(themeAssets).map(key =>
-        createSvgImagePromise(themeAssets[key]()).then(img => {
-            assets[key] = img;
-        })
-    );
-
-    try {
-        await Promise.all(promises);
-        loadingText.classList.add('hidden');
-        homeButtons.classList.remove('hidden');
-    } catch (error) {
-        console.error("Failed to load one or more assets:", error);
-        loadingText.textContent = "Error loading assets.";
-    }
+    const promises = Object.keys(themeAssets).map(key => createSvgImagePromise(themeAssets[key]()).then(img => { assets[key] = img; }));
+    try { await Promise.all(promises); loadingText.classList.add('hidden'); homeButtons.classList.remove('hidden'); } catch (error) { console.error("Failed to load assets:", error); loadingText.textContent = "Error loading assets."; }
 }
 function createStarryBackground() { return `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="grad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2a2a4a"/><stop offset="100%" stop-color="#0c0a18"/></radialGradient><style>.star{animation:twinkle 2s ease-in-out infinite alternate;}@keyframes twinkle{0%{opacity:0.5;}100%{opacity:1;}}</style></defs><rect width="64" height="64" fill="url(#grad)"/><circle class="star" cx="10" cy="15" r="1" fill="white"/><circle class="star" cx="50" cy="20" r="1.2" fill="white" style="animation-delay:0.5s;"/><circle class="star" cx="30" cy="50" r="0.8" fill="white" style="animation-delay:1s;"/><circle class="star" cx="60" cy="55" r="1" fill="white" style="animation-delay:1.5s;"/></svg>`; }
 function createWall() { return `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" fill="#4A5568"/><rect x="2" y="2" width="28" height="28" fill="#718096"/><path d="M0 0 H16 V4 H4 V16 H0Z M32 0 H16 V4 H28 V16 H32Z M0 32 H16 V28 H4 V16 H0Z M32 32 H16 V28 H28 V16 H32Z" fill="#2D3748"/></svg>`; }
