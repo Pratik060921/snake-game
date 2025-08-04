@@ -7,7 +7,7 @@ import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setDo
 const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score'), finalScoreElement = document.getElementById('finalScore'), timerDisplay = document.getElementById('timerDisplay'), comboDisplay = document.getElementById('comboDisplay');
 const gameContainer = document.getElementById('gameContainer'), homeScreen = document.getElementById('homeScreen'), gameOverModal = document.getElementById('gameOverModal'), pauseScreen = document.getElementById('pauseScreen'), settingsScreen = document.getElementById('settingsScreen'), gameModeScreen = document.getElementById('gameModeScreen'), globalLeaderboardScreen = document.getElementById('globalLeaderboardScreen');
-const playButton = document.getElementById('playButton'), restartButton = document.getElementById('restartButton'), homeButtons = document.getElementById('homeButtons'), settingsButton = document.getElementById('settingsButton'), settingsBackButton = document.getElementById('settingsBackButton'), soundToggle = document.getElementById('soundToggle'), modeBackButton = document.getElementById('modeBackButton'), themeSelection = document.getElementById('themeSelection'), leaderboardButton = document.getElementById('leaderboardButton'), leaderboardBackButton = document.getElementById('leaderboardBackButton');
+const playButton = document.getElementById('playButton'), restartButton = document.getElementById('restartButton'), homeButtons = document.getElementById('homeButtons'), settingsButton = document.getElementById('settingsButton'), settingsBackButton = document.getElementById('settingsBackButton'), soundToggle = document.getElementById('soundToggle'), modeBackButton = document.getElementById('modeBackButton'), themeSelection = document.getElementById('themeSelection'), leaderboardButton = document.getElementById('leaderboardButton'), leaderboardBackButton = document.getElementById('leaderboardBackButton'), homeButton = document.getElementById('homeButton');
 const personalBestTitle = document.getElementById('personalBestTitle'), personalBestDisplay = document.getElementById('personalBestDisplay'), newPlayerContainer = document.getElementById('newPlayerContainer'), playerNameInput = document.getElementById('playerNameInput'), globalLeaderboardTitle = document.getElementById('globalLeaderboardTitle'), globalLeaderboardList = document.getElementById('globalLeaderboardList'), playerRankDisplay = document.getElementById('playerRankDisplay');
 const touchControlsContainer = document.getElementById('touchControlsContainer');
 const playPauseButton = document.getElementById('playPauseButton'), pauseIcon = document.getElementById('pauseIcon'), playIcon = document.getElementById('playIcon');
@@ -56,6 +56,7 @@ const DIFFICULTY_SPEEDS = { easy: 200, medium: 150, hard: 100 };
 // --- GAME STATE ---
 let snake, foods, enemies, direction, score, gameOver, logicInterval, currentSpeed, particles, isPaused = false, gameMode = 'classic', maze, timer, timerInterval, applesEaten, combo, comboTimer;
 let gameSettings = { difficulty: 'medium', sound: true, theme: 'default' };
+let playerData = { name: null, highScores: { classic: 0, maze: 0, timeAttack: 0 } };
 const assets = {};
 
 // --- THEME DEFINITIONS ---
@@ -72,9 +73,10 @@ function createSvgImagePromise(svgString) { return new Promise((resolve, reject)
 async function loadThemeAssets() {
     const themeAssets = THEMES[gameSettings.theme].assets;
     homeButtons.classList.add('hidden');
+    loadingText.textContent = "Loading Assets...";
     loadingText.classList.remove('hidden');
     const promises = Object.keys(themeAssets).map(key => createSvgImagePromise(themeAssets[key]()).then(img => { assets[key] = img; }));
-    try { await Promise.all(promises); loadingText.classList.add('hidden'); homeButtons.classList.remove('hidden'); } catch (error) { console.error("Failed to load assets:", error); loadingText.textContent = "Error loading assets."; }
+    try { await Promise.all(promises); } catch (error) { console.error("Failed to load assets:", error); loadingText.textContent = "Error loading assets."; }
 }
 function createStarryBackground() { return `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="grad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2a2a4a"/><stop offset="100%" stop-color="#0c0a18"/></radialGradient><style>.star{animation:twinkle 2s ease-in-out infinite alternate;}@keyframes twinkle{0%{opacity:0.5;}100%{opacity:1;}}</style></defs><rect width="64" height="64" fill="url(#grad)"/><circle class="star" cx="10" cy="15" r="1" fill="white"/><circle class="star" cx="50" cy="20" r="1.2" fill="white" style="animation-delay:0.5s;"/><circle class="star" cx="30" cy="50" r="0.8" fill="white" style="animation-delay:1s;"/><circle class="star" cx="60" cy="55" r="1" fill="white" style="animation-delay:1.5s;"/></svg>`; }
 function createWall() { return `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" fill="#4A5568"/><rect x="2" y="2" width="28" height="28" fill="#718096"/><path d="M0 0 H16 V4 H4 V16 H0Z M32 0 H16 V4 H28 V16 H32Z M0 32 H16 V28 H4 V16 H0Z M32 32 H16 V28 H28 V16 H32Z" fill="#2D3748"/></svg>`; }
@@ -118,52 +120,45 @@ function loadMaze() { maze = MAZES[Math.floor(Math.random() * MAZES.length)]; }
 function loadSettings() { const saved = localStorage.getItem(SETTINGS_KEY); if (saved) gameSettings = JSON.parse(saved); updateSettingsUI(); }
 function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(gameSettings)); }
 function updateSettingsUI() { soundToggle.textContent = `Sound: ${gameSettings.sound ? 'ON' : 'OFF'}`; document.querySelectorAll('.difficulty-btn').forEach(btn => btn.classList.toggle('btn-active', btn.dataset.difficulty === gameSettings.difficulty)); updateThemeSelection(); }
-function getLeaderboardKey() { return `leaderboard_${gameMode}`; }
-async function loadHighScores() {
-    if (!db) {
-        leaderboardList.innerHTML = '<li class="text-red-500">Online scores unavailable</li>';
-        return [];
+async function loadPlayerData() {
+    if (!db || !currentUser) return;
+    const playerDocRef = doc(db, "players", currentUser.uid);
+    const docSnap = await getDoc(playerDocRef);
+    if (docSnap.exists()) {
+        playerData = docSnap.data();
     }
-    const q = query(collection(db, getLeaderboardKey()), orderBy("score", "desc"), limit(5));
+    updatePersonalBestDisplay();
+    loadingText.classList.add('hidden');
+    homeButtons.classList.remove('hidden');
+}
+async function savePlayerData() {
+    if (!db || !currentUser) return;
+    try {
+        await setDoc(doc(db, "players", currentUser.uid), playerData);
+    } catch (e) {
+        console.error("Error saving player data: ", e);
+    }
+}
+async function getGlobalLeaderboard() {
+    if (!db) return [];
+    const q = query(collection(db, `leaderboard_${gameMode}`), orderBy("score", "desc"), limit(5));
     const querySnapshot = await getDocs(q);
     const scores = [];
     querySnapshot.forEach((doc) => scores.push(doc.data()));
     return scores;
 }
-async function addHighScore(name, score) {
-    let totalScore = parseInt(localStorage.getItem(TOTAL_SCORE_KEY) || '0');
-    totalScore += score;
-    localStorage.setItem(TOTAL_SCORE_KEY, totalScore);
-
-    if (!db) return;
-    try {
-        await addDoc(collection(db, getLeaderboardKey()), { name, score, createdAt: new Date() });
-    } catch (e) {
-        console.error("Error adding document: ", e);
-    }
+async function displayGlobalLeaderboard() {
+    globalLeaderboardTitle.textContent = `Global ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Scores`;
+    globalLeaderboardList.innerHTML = '<li class="text-gray-500">Loading...</li>';
+    const scores = await getGlobalLeaderboard();
+    globalLeaderboardList.innerHTML = '';
+    if (scores.length === 0) { globalLeaderboardList.innerHTML = '<li class="text-gray-500">No scores yet!</li>'; } 
+    else { scores.forEach((entry, i) => { const li = document.createElement('li'); li.innerHTML = `<span class="text-yellow-500">${i + 1}.</span> ${entry.name} - <span class="font-bold">${entry.score}</span>`; globalLeaderboardList.appendChild(li); }); }
+    playerRankDisplay.textContent = `${playerData.name || 'You'}: ${playerData.highScores[gameMode] || 0} points`;
 }
-async function displayLeaderboard() {
-    leaderboardTitle.textContent = `${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Scores`;
-    leaderboardList.innerHTML = '<li class="text-gray-500">Loading...</li>';
-    highScores = await loadHighScores();
-    leaderboardList.innerHTML = '';
-    if (highScores.length === 0) { leaderboardList.innerHTML = '<li class="text-gray-500">Play to set a score!</li>'; return; }
-    highScores.forEach((entry, i) => { const li = document.createElement('li'); li.innerHTML = `<span class="text-yellow-500">${i + 1}.</span> ${entry.name} - <span class="font-bold">${entry.score}</span>`; leaderboardList.appendChild(li); });
-}
-async function checkHighScore() {
-    finalScoreElement.textContent = score;
-    const savedName = localStorage.getItem(PLAYER_NAME_KEY);
-    if (savedName) playerNameInput.value = savedName;
-    const currentHighScores = await loadHighScores();
-    const lowestScore = currentHighScores.length < 5 ? 0 : currentHighScores[4].score;
-    if (score > 0 && score > lowestScore) {
-        newHighScoreContainer.classList.remove('hidden');
-        playerNameInput.focus();
-        restartButton.textContent = "Save & Restart";
-    } else {
-        newHighScoreContainer.classList.add('hidden');
-        restartButton.textContent = "Play Again";
-    }
+function updatePersonalBestDisplay() {
+    personalBestTitle.textContent = `${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Best`;
+    personalBestDisplay.textContent = playerData.highScores[gameMode] || 0;
 }
 function updateThemeSelection() {
     const unlocked = JSON.parse(localStorage.getItem(UNLOCKED_THEMES_KEY) || '["default"]');
@@ -299,7 +294,7 @@ function spawnEnemy() {
     enemies.push(enemy);
 }
 function createParticles(x, y) { for (let i = 0; i < 15; i++) particles.push({ x: x * TILE_SIZE + TILE_SIZE/2, y: y * TILE_SIZE + TILE_SIZE/2, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, size: Math.random() * 3 + 1, alpha: 1 }); }
-function showGameOverScreen() { gameOverModal.classList.remove('hidden'); checkHighScore(); }
+function showGameOverScreen() { gameOverModal.classList.remove('hidden'); if (!playerData.name) { newPlayerContainer.classList.remove('hidden'); playerNameInput.focus(); } }
 function togglePause() { if (gameOver) return; isPaused = !isPaused; pauseScreen.classList.toggle('hidden'); playIcon.classList.toggle('hidden'); pauseIcon.classList.toggle('hidden'); if (isPaused) { stopMusic(); if(timerInterval) clearInterval(timerInterval); } else { startMusic(); if(gameMode === 'timeAttack' && timer > 0) timerInterval = setInterval(() => { timer--; timerDisplay.textContent = `TIME: ${timer}`; if (timer <= 0) { gameOver = true; playSound('gameover'); stopMusic(); document.getElementById('gameOverTitle').textContent = "TIME'S UP!"; } }, 1000); } }
 
 // --- EVENT HANDLERS ---
@@ -327,26 +322,48 @@ function handleKeyDown(e) {
         }
     }
 }
-async function handleRestart() { playSound('click'); const currentHighScores = await loadHighScores(); const lowestScore = currentHighScores.length < 5 ? 0 : currentHighScores[4].score; if (score > 0 && score >= lowestScore) { let name = playerNameInput.value.trim().toUpperCase() || 'PLAYER'; localStorage.setItem(PLAYER_NAME_KEY, name); await addHighScore(name, score); } await displayLeaderboard(); homeScreen.classList.remove('hidden'); gameOverModal.classList.add('hidden'); gameContainer.classList.add('hidden'); touchControlsContainer.classList.add('hidden'); stopMusic(); }
+async function processGameOverAndRestart(playAgain) {
+    playSound('click');
+    if (!playerData.name) {
+        const name = playerNameInput.value.trim().toUpperCase() || 'PLAYER';
+        playerData.name = name;
+    }
+    if (score > (playerData.highScores[gameMode] || 0)) {
+        playerData.highScores[gameMode] = score;
+        await addHighScore(playerData.name, score);
+    }
+    await savePlayerData();
+    stopMusic();
+    
+    if(playAgain) {
+        initializeGame();
+    } else {
+        gameOverModal.classList.add('hidden');
+        gameContainer.classList.add('hidden');
+        homeScreen.classList.remove('hidden');
+        updatePersonalBestDisplay();
+    }
+}
 function setupTouchControls() { document.getElementById('touchUp').addEventListener('click', () => { if (direction !== DIRECTIONS.DOWN) direction = DIRECTIONS.UP; }); document.getElementById('touchDown').addEventListener('click', () => { if (direction !== DIRECTIONS.UP) direction = DIRECTIONS.DOWN; }); document.getElementById('touchLeft').addEventListener('click', () => { if (direction !== DIRECTIONS.RIGHT) direction = DIRECTIONS.LEFT; }); document.getElementById('touchRight').addEventListener('click', () => { if (direction !== DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT; }); }
 
 // --- INITIALIZE ---
 window.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', handleKeyDown);
     playButton.addEventListener('click', () => { playSound('click'); homeScreen.classList.add('hidden'); gameModeScreen.classList.remove('hidden'); });
-    document.querySelectorAll('.game-mode-btn').forEach(btn => btn.addEventListener('click', (e) => { gameMode = e.target.dataset.mode; playSound('click'); displayLeaderboard(); gameModeScreen.classList.add('hidden'); gameContainer.classList.remove('hidden'); if ('ontouchstart' in window) touchControlsContainer.classList.remove('hidden'); initializeGame(); }));
+    document.querySelectorAll('.game-mode-btn').forEach(btn => btn.addEventListener('click', (e) => { gameMode = e.target.dataset.mode; playSound('click'); updatePersonalBestDisplay(); gameModeScreen.classList.add('hidden'); gameContainer.classList.remove('hidden'); if ('ontouchstart' in window) touchControlsContainer.classList.remove('hidden'); initializeGame(); }));
     modeBackButton.addEventListener('click', () => { playSound('click'); gameModeScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); });
-    restartButton.addEventListener('click', handleRestart);
+    restartButton.addEventListener('click', () => processGameOverAndRestart(true));
+    homeButton.addEventListener('click', () => processGameOverAndRestart(false));
     settingsButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.remove('hidden'); });
     settingsBackButton.addEventListener('click', () => { playSound('click'); settingsScreen.classList.add('hidden'); });
     soundToggle.addEventListener('click', () => { gameSettings.sound = !gameSettings.sound; saveSettings(); updateSettingsUI(); playSound('click'); });
     document.querySelectorAll('.difficulty-btn').forEach(btn => btn.addEventListener('click', (e) => { gameSettings.difficulty = e.target.dataset.difficulty; saveSettings(); updateSettingsUI(); playSound('click'); }));
     playPauseButton.addEventListener('click', togglePause);
+    leaderboardButton.addEventListener('click', () => { playSound('click'); displayGlobalLeaderboard(); homeScreen.classList.add('hidden'); globalLeaderboardScreen.classList.remove('hidden'); });
+    leaderboardBackButton.addEventListener('click', () => { playSound('click'); globalLeaderboardScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); });
 
     loadSettings();
     loadThemeAssets();
-    initializeFirebase().then(() => {
-        displayLeaderboard();
-    });
+    initializeFirebase();
     setupTouchControls();
 });
