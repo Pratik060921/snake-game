@@ -1,7 +1,7 @@
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, setDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- SETUP ---
 const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
@@ -18,7 +18,7 @@ const loadingText = document.getElementById('loadingText');
 let db = null, auth = null, currentUser = null;
 async function initializeFirebase() {
     try {
-        const firebaseConfigStr = 'eyJhcGlLZXkiOiJBSXphU3lBOFhkMVVhUmhWQTNoQl9OMnFBU2tWejVNM2oteFhKdzQiLCJhdXRoRG9tYWluIjoic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZWFwcC5jb20iLCJwcm9qZWN0SWQiOiJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwic3RvcmFnZUJ1Y2tldCI6InNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNjU3ODYwNzA5NjA5IiwiYXBwSWQiOiIxOjY1NzgwNzE5NjA5OndlYjozMWI0ZTFiYjIwYjVkZWJjN2ZmNDc4IiwibWVhc3VyZW1lbnRJZCI6IkctUkdTSFJWMUdYQyJ9';
+        const firebaseConfigStr = 'ewogIGFwaUtleTogIkFJemFTeUE4WGQxVWFSaFZBM2hCX04ycUFTa1Z6NU0zai1YeUp3NCIsCiAgYXV0aERvbWFpbjogInNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VhcHAuY29tIiwKICBwcm9qZWN0SWQ6ICJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwKICBzdG9yYWdlQnVja2V0OiAic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZXN0b3JhZ2UuYXBwIiwKICBtZXNzYWdpbmdTZW5kZXJJZDogIjY1Nzg2MDcwOTYwOSIsCiAgYXBwSWQ6ICIxOjY1Nzg2MDcwOTYwOTp3ZWI6MzFiNGUxYmIyMGI1ZGViYzdmZjQ3OCIsCiAgbWVhc3VyZW1lbnRJZDogIkctUkdTSFJWMUdYQyIKfQ==';
         const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
