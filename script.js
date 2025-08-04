@@ -18,8 +18,15 @@ const loadingText = document.getElementById('loadingText');
 let db = null, auth = null, currentUser = null;
 async function initializeFirebase() {
     try {
-        const firebaseConfigStr = 'ewogIGFwaUtleTogIkFJemFTeUE4WGQxVWFSaFZBM2hCX04ycUFTa1Z6NU0zai1YeUp3NCIsCiAgYXV0aERvbWFpbjogInNuYWtlLWdhbWUtbGVhZGVyYm9hcmQtNDE0NWYuZmlyZWJhc2VhcHAuY29tIiwKICBwcm9qZWN0SWQ6ICJzbmFrZS1nYW1lLWxlYWRlcmJvYXJkLTQxNDVmIiwKICBzdG9yYWdlQnVja2V0OiAic25ha2UtZ2FtZS1sZWFkZXJib2FyZC00MTQ1Zi5maXJlYmFzZXN0b3JhZ2UuYXBwIiwKICBtZXNzYWdpbmdTZW5kZXJJZDogIjY1Nzg2MDcwOTYwOSIsCiAgYXBwSWQ6ICIxOjY1Nzg2MDcwOTYwOTp3ZWI6MzFiNGUxYmIyMGI1ZGViYzdmZjQ3OCIsCiAgbWVhc3VyZW1lbnRJZDogIkctUkdTSFJWMUdYQyIKfQ==';
-        const firebaseConfig = JSON.parse(atob(firebaseConfigStr));
+        const firebaseConfig = {
+            apiKey: "AIzaSyA8Xd1UaRhVA3hB_N2qASkVz5M3j-XyJw4",
+            authDomain: "snake-game-leaderboard-4145f.firebaseapp.com",
+            projectId: "snake-game-leaderboard-4145f",
+            storageBucket: "snake-game-leaderboard-4145f.appspot.com",
+            messagingSenderId: "657860709609",
+            appId: "1:657860709609:web:31b4e1bb20b5debc7ff478",
+            measurementId: "G-RGSHRV1GXC"
+        };
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth();
@@ -76,7 +83,14 @@ async function loadThemeAssets() {
     loadingText.textContent = "Loading Assets...";
     loadingText.classList.remove('hidden');
     const promises = Object.keys(themeAssets).map(key => createSvgImagePromise(themeAssets[key]()).then(img => { assets[key] = img; }));
-    try { await Promise.all(promises); } catch (error) { console.error("Failed to load assets:", error); loadingText.textContent = "Error loading assets."; }
+    try { 
+        await Promise.all(promises);
+        loadingText.classList.add('hidden');
+        homeButtons.classList.remove('hidden');
+    } catch (error) { 
+        console.error("Failed to load assets:", error); 
+        loadingText.textContent = "Error loading assets."; 
+    }
 }
 function createStarryBackground() { return `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="grad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2a2a4a"/><stop offset="100%" stop-color="#0c0a18"/></radialGradient><style>.star{animation:twinkle 2s ease-in-out infinite alternate;}@keyframes twinkle{0%{opacity:0.5;}100%{opacity:1;}}</style></defs><rect width="64" height="64" fill="url(#grad)"/><circle class="star" cx="10" cy="15" r="1" fill="white"/><circle class="star" cx="50" cy="20" r="1.2" fill="white" style="animation-delay:0.5s;"/><circle class="star" cx="30" cy="50" r="0.8" fill="white" style="animation-delay:1s;"/><circle class="star" cx="60" cy="55" r="1" fill="white" style="animation-delay:1.5s;"/></svg>`; }
 function createWall() { return `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" fill="#4A5568"/><rect x="2" y="2" width="28" height="28" fill="#718096"/><path d="M0 0 H16 V4 H4 V16 H0Z M32 0 H16 V4 H28 V16 H32Z M0 32 H16 V28 H4 V16 H0Z M32 32 H16 V28 H28 V16 H32Z" fill="#2D3748"/></svg>`; }
