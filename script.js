@@ -1,7 +1,7 @@
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, set, get, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, get, query, orderByChild, limitToLast, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- SETUP ---
 const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
@@ -64,7 +64,7 @@ const DIFFICULTY_SPEEDS = { easy: 200, medium: 150, hard: 100 };
 // --- GAME STATE ---
 let snake, foods, enemies, direction, score, gameOver, logicInterval, currentSpeed, particles, isPaused = false, gameMode = 'classic', maze, timer, timerInterval, applesEaten, combo, comboTimer;
 let gameSettings = { difficulty: 'medium', sound: true, theme: 'default' };
-let playerData = { name: null, highScores: { classic: 0, maze: 0, timeAttack: 0 } };
+let playerData = { name: null, highScores: { classic_easy: 0, classic_medium: 0, classic_hard: 0, maze_easy: 0, maze_medium: 0, maze_hard: 0, timeAttack_easy: 0, timeAttack_medium: 0, timeAttack_hard: 0 } };
 const assets = {};
 
 // --- THEME DEFINITIONS ---
@@ -149,7 +149,7 @@ async function savePlayerData() {
 }
 async function getGlobalLeaderboard() {
     if (!db) return [];
-    const leaderboardRef = ref(db, `leaderboards/${gameMode}`);
+    const leaderboardRef = ref(db, `leaderboards/${gameMode}_${gameSettings.difficulty}`);
     const q = query(leaderboardRef, orderByChild('score'), limitToLast(5));
     const snapshot = await get(q);
     const scores = [];
@@ -160,8 +160,8 @@ async function getGlobalLeaderboard() {
 }
 async function addHighScore(name, score) {
     if (!db) return;
-    const leaderboardRef = ref(db, `leaderboards/${gameMode}`);
-    const newScoreRef = ref(leaderboardRef, `${currentUser.uid}_${Date.now()}`);
+    const leaderboardRef = ref(db, `leaderboards/${gameMode}_${gameSettings.difficulty}`);
+    const newScoreRef = push(leaderboardRef);
     try {
         await set(newScoreRef, { name, score });
         console.log("High score added to global leaderboard.");
@@ -170,17 +170,25 @@ async function addHighScore(name, score) {
     }
 }
 async function displayGlobalLeaderboard() {
-    globalLeaderboardTitle.textContent = `Global ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Scores`;
+    globalLeaderboardTitle.textContent = `Global ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} - ${gameSettings.difficulty.charAt(0).toUpperCase() + gameSettings.difficulty.slice(1)}`;
     globalLeaderboardList.innerHTML = '<li class="text-gray-500">Loading...</li>';
     const scores = await getGlobalLeaderboard();
     globalLeaderboardList.innerHTML = '';
-    if (scores.length === 0) { globalLeaderboardList.innerHTML = '<li class="text-gray-500">No scores yet!</li>'; } 
+    if (scores.length === 0) { 
+        if (playerData.highScores[`${gameMode}_${gameSettings.difficulty}`] > 0) {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="text-yellow-500">1.</span> ${playerData.name} - <span class="font-bold">${playerData.highScores[`${gameMode}_${gameSettings.difficulty}`]}</span>`;
+            globalLeaderboardList.appendChild(li);
+        } else {
+            globalLeaderboardList.innerHTML = '<li class="text-gray-500">No scores yet!</li>'; 
+        }
+    } 
     else { scores.forEach((entry, i) => { const li = document.createElement('li'); li.innerHTML = `<span class="text-yellow-500">${i + 1}.</span> ${entry.name} - <span class="font-bold">${entry.score}</span>`; globalLeaderboardList.appendChild(li); }); }
-    playerRankDisplay.textContent = `${playerData.name || 'You'}: ${playerData.highScores[gameMode] || 0} points`;
+    playerRankDisplay.textContent = `${playerData.name || 'You'}: ${playerData.highScores[`${gameMode}_${gameSettings.difficulty}`] || 0} points`;
 }
 function updatePersonalBestDisplay() {
     personalBestTitle.textContent = `${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Best`;
-    personalBestDisplay.textContent = playerData.highScores[gameMode] || 0;
+    personalBestDisplay.textContent = playerData.highScores[`${gameMode}_${gameSettings.difficulty}`] || 0;
 }
 function updateThemeSelection() {
     const unlocked = JSON.parse(localStorage.getItem(UNLOCKED_THEMES_KEY) || '["default"]');
@@ -350,8 +358,9 @@ async function processGameOverAndRestart(playAgain) {
         const name = playerNameInput.value.trim().toUpperCase() || 'PLAYER';
         playerData.name = name;
     }
-    if (score > (playerData.highScores[gameMode] || 0)) {
-        playerData.highScores[gameMode] = score;
+    const scoreKey = `${gameMode}_${gameSettings.difficulty}`;
+    if (score > (playerData.highScores[scoreKey] || 0)) {
+        playerData.highScores[scoreKey] = score;
         await addHighScore(playerData.name, score);
     }
     await savePlayerData();
