@@ -71,7 +71,7 @@ const assets = {};
 const THEMES = {
     'default': { name: 'Starry Night', unlockScore: 0, assets: { background: createStarryBackground, wall: createWall, apple: createApple, goldenApple: createGoldenApple, slowPotion: createSlowPotion, shrinkPotion: createShrinkPotion, snakeHead: createSnakeHead, snakeBody: createSnakeBody, snakeTail: createSnakeTail, enemy: createEnemy } },
     'tron': { name: 'Tron', unlockScore: 100, assets: { background: createTronBackground, wall: createTronWall, apple: createTronApple, goldenApple: createTronGoldenApple, slowPotion: createTronSlowPotion, shrinkPotion: createTronShrinkPotion, snakeHead: createTronSnakeHead, snakeBody: createTronSnakeBody, snakeTail: createTronSnakeTail, enemy: createTronEnemy } },
-    'jungle': { name: 'Jungle', unlockScore: 250, assets: { background: createJungleBackground, wall: createJungleWall, apple: createJungleApple, goldenApple: createJungleGoldenApple, slowPotion: createJungleSlowPotion, shrinkPotion: createJungleShrinkPotion, snakeHead: createJungleSnakeHead, snakeBody: createJungleSnakeBody, snakeTail: createJungleSnakeTail, enemy: createJungleEnemy } }
+    'jungle': { name: 'Jungle', unlockScore: 250, assets: { background: createJungleBackground, wall: createJungleWall, apple: createJungleApple, goldenApple: createJungleGoldenApple, slowPotion: createJungleSlowPotion, shrinkPotion: createShrinkPotion, snakeHead: createJungleSnakeHead, snakeBody: createJungleSnakeBody, snakeTail: createJungleSnakeTail, enemy: createJungleEnemy } }
 };
 
 const DIRECTIONS = { UP: { x: 0, y: -1 }, DOWN: { x: 0, y: 1 }, LEFT: { x: -1, y: 0 }, RIGHT: { x: 1, y: 0 }, STOP: { x: 0, y: 0 } };
@@ -130,10 +130,10 @@ function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(game
 function updateSettingsUI() { soundToggle.textContent = `Sound: ${gameSettings.sound ? 'ON' : 'OFF'}`; document.querySelectorAll('.difficulty-btn').forEach(btn => btn.classList.toggle('btn-active', btn.dataset.difficulty === gameSettings.difficulty)); updateThemeSelection(); }
 async function loadPlayerData() {
     if (!db || !currentUser) return;
-    const playerDocRef = doc(db, "players", currentUser.uid);
-    const docSnap = await getDoc(playerDocRef);
-    if (docSnap.exists()) {
-        playerData = docSnap.data();
+    const playerRef = ref(db, `players/${currentUser.uid}`);
+    const snapshot = await get(playerRef);
+    if (snapshot.exists()) {
+        playerData = snapshot.val();
     }
     updatePersonalBestDisplay();
     loadingText.classList.add('hidden');
@@ -142,18 +142,35 @@ async function loadPlayerData() {
 async function savePlayerData() {
     if (!db || !currentUser) return;
     try {
-        await setDoc(doc(db, "players", currentUser.uid), playerData);
+        await set(ref(db, `players/${currentUser.uid}`), playerData);
     } catch (e) {
         console.error("Error saving player data: ", e);
     }
 }
 async function getGlobalLeaderboard() {
     if (!db) return [];
-    const q = query(collection(db, `leaderboard_${gameMode}`), orderBy("score", "desc"), limit(5));
-    const querySnapshot = await getDocs(q);
+    const leaderboardRef = ref(db, `leaderboards/${gameMode}`);
+    const q = query(leaderboardRef, orderByChild('score'), limitToLast(5));
+    const snapshot = await get(q);
     const scores = [];
-    querySnapshot.forEach((doc) => scores.push(doc.data()));
+    snapshot.forEach(childSnapshot => {
+        scores.unshift(childSnapshot.val()); // unshift to reverse order
+    });
     return scores;
+}
+async function addHighScore(name, score) {
+    if (!db) return;
+    const leaderboardRef = ref(db, `leaderboards/${gameMode}`);
+    const q = query(leaderboardRef, orderByChild('score'), limitToLast(1));
+    const snapshot = await get(q);
+    let lowestScore = 0;
+    if(snapshot.exists()) {
+        snapshot.forEach(child => { lowestScore = child.val().score });
+    }
+    
+    // Add new score and then trim the leaderboard to 5
+    const newScoreRef = ref(db, `leaderboards/${gameMode}/${currentUser.uid}_${Date.now()}`);
+    await set(newScoreRef, { name, score });
 }
 async function displayGlobalLeaderboard() {
     globalLeaderboardTitle.textContent = `Global ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Scores`;
