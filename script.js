@@ -71,7 +71,7 @@ const assets = {};
 const THEMES = {
     'default': { name: 'Starry Night', unlockScore: 0, assets: { background: createStarryBackground, wall: createWall, apple: createApple, goldenApple: createGoldenApple, slowPotion: createSlowPotion, shrinkPotion: createShrinkPotion, snakeHead: createSnakeHead, snakeBody: createSnakeBody, snakeTail: createSnakeTail, enemy: createEnemy } },
     'tron': { name: 'Tron', unlockScore: 100, assets: { background: createTronBackground, wall: createTronWall, apple: createTronApple, goldenApple: createTronGoldenApple, slowPotion: createTronSlowPotion, shrinkPotion: createTronShrinkPotion, snakeHead: createTronSnakeHead, snakeBody: createTronSnakeBody, snakeTail: createTronSnakeTail, enemy: createTronEnemy } },
-    'jungle': { name: 'Jungle', unlockScore: 250, assets: { background: createJungleBackground, wall: createJungleWall, apple: createJungleApple, goldenApple: createJungleGoldenApple, slowPotion: createJungleSlowPotion, shrinkPotion: createShrinkPotion, snakeHead: createJungleSnakeHead, snakeBody: createJungleSnakeBody, snakeTail: createJungleSnakeTail, enemy: createJungleEnemy } }
+    'jungle': { name: 'Jungle', unlockScore: 250, assets: { background: createJungleBackground, wall: createJungleWall, apple: createJungleApple, goldenApple: createJungleGoldenApple, slowPotion: createJungleSlowPotion, shrinkPotion: createJungleShrinkPotion, snakeHead: createJungleSnakeHead, snakeBody: createJungleSnakeBody, snakeTail: createJungleSnakeTail, enemy: createJungleEnemy } }
 };
 
 const DIRECTIONS = { UP: { x: 0, y: -1 }, DOWN: { x: 0, y: 1 }, LEFT: { x: -1, y: 0 }, RIGHT: { x: 1, y: 0 }, STOP: { x: 0, y: 0 } };
@@ -161,16 +161,13 @@ async function getGlobalLeaderboard() {
 async function addHighScore(name, score) {
     if (!db) return;
     const leaderboardRef = ref(db, `leaderboards/${gameMode}`);
-    const q = query(leaderboardRef, orderByChild('score'), limitToLast(1));
-    const snapshot = await get(q);
-    let lowestScore = 0;
-    if(snapshot.exists()) {
-        snapshot.forEach(child => { lowestScore = child.val().score });
+    const newScoreRef = ref(leaderboardRef, `${currentUser.uid}_${Date.now()}`);
+    try {
+        await set(newScoreRef, { name, score });
+        console.log("High score added to global leaderboard.");
+    } catch (e) {
+        console.error("Error adding high score to global leaderboard:", e);
     }
-    
-    // Add new score and then trim the leaderboard to 5
-    const newScoreRef = ref(db, `leaderboards/${gameMode}/${currentUser.uid}_${Date.now()}`);
-    await set(newScoreRef, { name, score });
 }
 async function displayGlobalLeaderboard() {
     globalLeaderboardTitle.textContent = `Global ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Scores`;
