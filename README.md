@@ -3,7 +3,7 @@
 Tired of the same old snake game? So were we! Welcome to **Grid Glider**, a supercharged version of the classic you know and love, packed with enough features to keep you hooked for hours.
 
 **➡️ Play the Live Game Here!** <br>
-[https://pratik060921.github.io/snake-game/](https://pratik060921.github.io/snake-game/)
+([https://pratik060921.github.io/snake-game/](https://pratik060921.github.io/Grid-Glider/))
 
 ---
 
